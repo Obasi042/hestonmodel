@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heston Model - Lewis Approach</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+        }
+        .results {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        .result-label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .result-value {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .formula-display {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Heston Model Option Pricing - Lewis Approach</h1>
+        
+        <div class="section">
+            <h3>Market Parameters</h3>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label for="S0">Current Stock Price (S₀)</label>
+                    <input type="number" id="S0" value="100" step="0.01">
+                </div>
+                <div class="input-group">
+                    <label for="K">Strike Price (K)</label>
+                    <input type="number" id="K" value="100" step="0.01">
+                </div>
+                <div class="input-group">
+                    <label for="T">Time to Maturity (T)</label>
+                    <input type="number" id="T" value="0.25" step="0.01">
+                </div>
+                <div class="input-group">
+                    <label for="r">Risk-free Rate (r)</label>
+                    <input type="number" id="r" value="0.05" step="0.001">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Heston Model Parameters</h3>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label for="v0">Initial Variance (v₀)</label>
+                    <input type="number" id="v0" value="0.04" step="0.001">
+                </div>
+                <div class="input-group">
+                    <label for="kappa">Mean Reversion Speed (κ)</label>
+                    <input type="number" id="kappa" value="2.0" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="theta">Long-term Variance (θ)</label>
+                    <input type="number" id="theta" value="0.04" step="0.001">
+                </div>
+                <div class="input-group">
+                    <label for="sigma">Vol of Vol (σ)</label>
+                    <input type="number" id="sigma" value="0.3" step="0.01">
+                </div>
+                <div class="input-group">
+                    <label for="rho">Correlation (ρ)</label>
+                    <input type="number" id="rho" value="-0.7" step="0.01" min="-1" max="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Numerical Integration Parameters</h3>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label for="alpha">Damping Parameter (α)</label>
+                    <input type="number" id="alpha" value="1.5" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="N">Number of Integration Points</label>
+                    <input type="number" id="N" value="1000" step="100">
+                </div>
+                <div class="input-group">
+                    <label for="du">Integration Step Size</label>
+                    <input type="number" id="du" value="0.01" step="0.001">
+                </div>
+            </div>
+        </div>
+
+        <div class="warning">
+            <strong>Note:</strong> The Feller condition (2κθ ≥ σ²) should be satisfied to ensure the variance process doesn't reach zero.
+        </div>
+
+        <button onclick="calculateHestonPrice()">Calculate Option Price</button>
+
+        <div class="results" id="results" style="display: none;">
+            <h3>Results</h3>
+            <div id="optionPrice" class="result-item">
+                <span class="result-label">Call Option Price:</span>
+                <span class="result-value" id="callPrice">-</span>
+            </div>
+            <div id="putPrice" class="result-item">
+                <span class="result-label">Put Option Price:</span>
+                <span class="result-value" id="putPriceValue">-</span>
+            </div>
+            <div id="fellerCondition" class="result-item">
+                <span class="result-label">Feller Condition (2κθ ≥ σ²):</span>
+                <span class="result-value" id="fellerValue">-</span>
+            </div>
+            <div id="impliedVol" class="result-item">
+                <span class="result-label">Initial Volatility (√v₀):</span>
+                <span class="result-value" id="impliedVolValue">-</span>
+            </div>
+        </div>
+
+        <div class="formula-display">
+            <strong>Lewis Formula Implementation:</strong><br>
+            Call Price = S₀ * P₁ - K * e^(-rT) * P₂<br><br>
+            Where P_j = 1/2 + (1/π) * ∫₀^∞ Re[e^(-iφ*ln(K)) * f_j(φ) / (iφ)] dφ<br><br>
+            Characteristic Function: f_j(φ) = exp(C_j(T,φ) + D_j(T,φ)*v₀ + iφ*ln(S₀))<br><br>
+            C_j(T,φ) = rφiT + (a/σ²)*[(b_j - ρσφi + d_j)T - 2*ln((1-g_j*e^(d_j*T))/(1-g_j))]<br>
+            D_j(T,φ) = (b_j - ρσφi + d_j)/σ² * (1-e^(d_j*T))/(1-g_j*e^(d_j*T))
+        </div>
+    </div>
+
+    <script>
+        // Complex number operations
+        class Complex {
+            constructor(real, imag = 0) {
+                this.real = real;
+                this.imag = imag;
+            }
+            
+            add(other) {
+                return new Complex(this.real + other.real, this.imag + other.imag);
+            }
+            
+            subtract(other) {
+                return new Complex(this.real - other.real, this.imag - other.imag);
+            }
+            
+            multiply(other) {
+                if (typeof other === 'number') {
+                    return new Complex(this.real * other, this.imag * other);
+                }
+                return new Complex(
+                    this.real * other.real - this.imag * other.imag,
+                    this.real * other.imag + this.imag * other.real
+                );
+            }
+            
+            divide(other) {
+                if (typeof other === 'number') {
+                    return new Complex(this.real / other, this.imag / other);
+                }
+                const denom = other.real * other.real + other.imag * other.imag;
+                return new Complex(
+                    (this.real * other.real + this.imag * other.imag) / denom,
+                    (this.imag * other.real - this.real * other.imag) / denom
+                );
+            }
+            
+            exp() {
+                const expReal = Math.exp(this.real);
+                return new Complex(
+                    expReal * Math.cos(this.imag),
+                    expReal * Math.sin(this.imag)
+                );
+            }
+            
+            log() {
+                const modulus = Math.sqrt(this.real * this.real + this.imag * this.imag);
+                const argument = Math.atan2(this.imag, this.real);
+                return new Complex(Math.log(modulus), argument);
+            }
+            
+            sqrt() {
+                const modulus = Math.sqrt(this.real * this.real + this.imag * this.imag);
+                const argument = Math.atan2(this.imag, this.real);
+                const sqrtModulus = Math.sqrt(modulus);
+                const halfArgument = argument / 2;
+                return new Complex(
+                    sqrtModulus * Math.cos(halfArgument),
+                    sqrtModulus * Math.sin(halfArgument)
+                );
+            }
+        }
+
+        function hestonCharacteristicFunction(phi, S0, v0, r, T, kappa, theta, sigma, rho, j) {
+            const i = new Complex(0, 1);
+            const phiComplex = new Complex(0, phi);
+            
+            // Parameters for P1 (j=1) and P2 (j=2)
+            const u_j = j === 1 ? 0.5 : -0.5;
+            const a_j = kappa * theta;
+            const b_j = j === 1 ? kappa - rho * sigma : kappa;
+            
+            // Calculate discriminant
+            const term1 = rho * sigma * phi;
+            const term2 = b_j;
+            const discriminant = (term2 - i.multiply(term1)).multiply(term2 - i.multiply(term1))
+                .subtract(new Complex(sigma * sigma * (i.multiply(phi).subtract(new Complex(phi * phi))), 0));
+            
+            const d_j = discriminant.sqrt();
+            
+            // Calculate g_j
+            const numerator = b_j - i.multiply(rho * sigma * phi).subtract(d_j);
+            const denominator = b_j - i.multiply(rho * sigma * phi).add(d_j);
+            const g_j = numerator.divide(denominator);
+            
+            // Calculate exponential term
+            const expTerm = d_j.multiply(T).exp();
+            
+            // Calculate C_j(T, phi)
+            const logTerm = (new Complex(1).subtract(g_j.multiply(expTerm)))
+                .divide(new Complex(1).subtract(g_j)).log();
+            
+            const C_j = i.multiply(phi * r * T)
+                .add(new Complex(a_j / (sigma * sigma)).multiply(
+                    (b_j - i.multiply(rho * sigma * phi).add(d_j)).multiply(T)
+                    .subtract(logTerm.multiply(2))
+                ));
+            
+            // Calculate D_j(T, phi)
+            const D_j = (b_j - i.multiply(rho * sigma * phi).add(d_j))
+                .divide(new Complex(sigma * sigma))
+                .multiply(new Complex(1).subtract(expTerm))
+                .divide(new Complex(1).subtract(g_j.multiply(expTerm)));
+            
+            // Calculate characteristic function
+            const result = C_j.add(D_j.multiply(v0)).add(i.multiply(phi * Math.log(S0))).exp();
+            
+            return result;
+        }
+
+        function simpsonIntegration(func, a, b, n) {
+            if (n % 2 === 1) n += 1; // Ensure n is even
+            
+            const h = (b - a) / n;
+            let sum = func(a) + func(b);
+            
+            for (let i = 1; i < n; i++) {
+                const x = a + i * h;
+                sum += (i % 2 === 0 ? 2 : 4) * func(x);
+            }
+            
+            return (h / 3) * sum;
+        }
+
+        function calculateProbability(S0, K, v0, r, T, kappa, theta, sigma, rho, j, N, du) {
+            const integrand = (u) => {
+                if (u === 0) return 0;
+                
+                const phi = new Complex(0, u);
+                const charFunc = hestonCharacteristicFunction(u, S0, v0, r, T, kappa, theta, sigma, rho, j);
+                const logK = Math.log(K);
+                
+                const numerator = charFunc.multiply(new Complex(Math.cos(-u * logK), Math.sin(-u * logK)));
+                const denominator = new Complex(0, u);
+                
+                const result = numerator.divide(denominator);
+                return result.real;
+            };
+            
+            const integral = simpsonIntegration(integrand, 0.0001, N * du, N);
+            return 0.5 + (1 / Math.PI) * integral;
+        }
+
+        function calculateHestonPrice() {
+            // Get input values
+            const S0 = parseFloat(document.getElementById('S0').value);
+            const K = parseFloat(document.getElementById('K').value);
+            const T = parseFloat(document.getElementById('T').value);
+            const r = parseFloat(document.getElementById('r').value);
+            const v0 = parseFloat(document.getElementById('v0').value);
+            const kappa = parseFloat(document.getElementById('kappa').value);
+            const theta = parseFloat(document.getElementById('theta').value);
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const rho = parseFloat(document.getElementById('rho').value);
+            const N = parseInt(document.getElementById('N').value);
+            const du = parseFloat(document.getElementById('du').value);
+            
+            try {
+                // Calculate probabilities
+                const P1 = calculateProbability(S0, K, v0, r, T, kappa, theta, sigma, rho, 1, N, du);
+                const P2 = calculateProbability(S0, K, v0, r, T, kappa, theta, sigma, rho, 2, N, du);
+                
+                // Calculate call option price using Lewis formula
+                const callPrice = S0 * P1 - K * Math.exp(-r * T) * P2;
+                
+                // Calculate put option price using put-call parity
+                const putPrice = callPrice - S0 + K * Math.exp(-r * T);
+                
+                // Check Feller condition
+                const fellerCondition = 2 * kappa * theta >= sigma * sigma;
+                const fellerValue = (2 * kappa * theta).toFixed(4);
+                const sigmaSquared = (sigma * sigma).toFixed(4);
+                
+                // Display results
+                document.getElementById('results').style.display = 'block';
+                document.getElementById('callPrice').textContent = '$' + callPrice.toFixed(4);
+                document.getElementById('putPriceValue').textContent = '$' + putPrice.toFixed(4);
+                document.getElementById('fellerValue').textContent = 
+                    `${fellerCondition ? 'Satisfied' : 'Violated'} (${fellerValue} ${fellerCondition ? '≥' : '<'} ${sigmaSquared})`;
+                document.getElementById('impliedVolValue').textContent = (Math.sqrt(v0) * 100).toFixed(2) + '%';
+                
+                // Color code the Feller condition
+                const fellerElement = document.getElementById('fellerValue');
+                fellerElement.style.color = fellerCondition ? '#27ae60' : '#e74c3c';
+                
+            } catch (error) {
+                alert('Error in calculation: ' + error.message);
+                console.error('Calculation error:', error);
+            }
+        }
+
+        // Initialize with default calculation
+        window.onload = function() {
+            calculateHestonPrice();
+        };
+    </script>
+</body>
+</html>
